@@ -25,10 +25,31 @@ const createOrganization = (req, res) => {
                 });
             }
 
-            res.status(201).json({
-                message: "Organization created successfully",
-                organizationId: result.insertId
-            });
+            const organizationId = result.insertId;
+
+            const updateUserSql = `
+                UPDATE users
+                SET organization_id = ?
+                WHERE id = ?
+            `;
+
+            db.query(
+                updateUserSql,
+                [organizationId, req.user.id],
+                (updateErr) => {
+                    if (updateErr) {
+                        return res.status(500).json({
+                            message: "Organization created but failed to assign it to Admin",
+                            error: updateErr.message
+                        });
+                    }
+
+                    res.status(201).json({
+                        message: "Organization created successfully",
+                        organizationId: organizationId
+                    });
+                }
+            );
         }
     );
 };
