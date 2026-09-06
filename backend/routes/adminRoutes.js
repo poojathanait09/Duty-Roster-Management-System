@@ -5,7 +5,11 @@ const {
     createOrganization,
     createDepartment,
     getDepartments,
-    createEmployee
+    createEmployee,
+    getEmployees,
+    updateEmployee,
+    deleteEmployee,
+    createManager
 } = require("../controllers/adminController");
 
 const router = express.Router();
@@ -50,6 +54,34 @@ router.post(
     authMiddleware,
     roleMiddleware("ADMIN"),
     createEmployee
+);
+
+router.get(
+    "/employees",
+    authMiddleware,
+    roleMiddleware("ADMIN"),
+    getEmployees
+);
+
+router.put(
+    "/employees/:id",
+    authMiddleware,
+    roleMiddleware("ADMIN"),
+    updateEmployee
+);
+
+router.delete(
+    "/employees/:id",
+    authMiddleware,
+    roleMiddleware("ADMIN"),
+    deleteEmployee
+);
+
+router.post(
+    "/managers",
+    authMiddleware,
+    roleMiddleware("ADMIN"),
+    createManager
 );
 
 module.exports = router;
