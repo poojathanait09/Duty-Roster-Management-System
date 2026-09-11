@@ -10,6 +10,8 @@ const adminRoutes = require("./routes/adminRoutes");
 const managerRoutes = require("./routes/managerRoutes");
 
 const leaveRoutes = require("./routes/leaveRoutes");
+const rosterRoutes = require("./routes/rosterRoutes");
+
 const app = express();
 
 app.use(cors());
@@ -21,6 +23,7 @@ app.use("/api/admin", adminRoutes);
 
 app.use("/api/manager", managerRoutes);
 app.use("/api/leaves", leaveRoutes);
+app.use("/api/rosters", rosterRoutes);
 
 app.get("/", (req,res) => {
     res.json({message:"Smart Duty roster API is running"});
