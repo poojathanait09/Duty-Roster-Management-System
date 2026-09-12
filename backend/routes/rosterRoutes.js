@@ -4,8 +4,10 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
 const {
-    createRoster
+    createRoster, getRosters, generateRoster
 } = require("../controllers/rosterController");
+
+
 
 const router = express.Router();
 
@@ -14,6 +16,20 @@ router.post(
     authMiddleware,
     roleMiddleware("MANAGER"),
     createRoster
+);
+
+router.get(
+    "/",
+    authMiddleware,
+    roleMiddleware("MANAGER"),
+    getRosters
+);
+
+router.post(
+    "/:id/generate",
+    authMiddleware,
+    roleMiddleware("MANAGER"),
+    generateRoster
 );
 
 module.exports = router;
