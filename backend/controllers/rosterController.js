@@ -145,6 +145,52 @@ const getRosters = (req, res) => {
     });
 };
 
+const getRosterAssignments = (req, res) => {
+
+    const rosterId = req.params.id;
+    const managerId = req.user.id;
+
+    const sql = `
+        SELECT
+            ra.id,
+            ra.duty_date,
+            ra.employee_id,
+            u.name AS employee_name,
+            ra.shift_id,
+            s.name AS shift_name,
+            s.start_time,
+            s.end_time
+        FROM roster_assignments ra
+        JOIN rosters r
+            ON ra.roster_id = r.id
+        JOIN users u
+            ON ra.employee_id = u.id
+        JOIN shifts s
+            ON ra.shift_id = s.id
+        JOIN users m
+            ON r.department_id = m.department_id
+        WHERE ra.roster_id = ?
+        AND m.id = ?
+        AND m.role = 'MANAGER'
+        ORDER BY ra.duty_date, s.start_time
+    `;
+
+    db.query(sql, [rosterId, managerId], (err, assignments) => {
+
+        if (err) {
+            return res.status(500).json({
+                message: "Failed to fetch roster assignments",
+                error: err.message
+            });
+        }
+
+        res.json({
+            rosterId,
+            assignments
+        });
+    });
+};
+
 const generateRoster = (req, res) => {
 
     const rosterId = req.params.id;
@@ -170,5 +216,5 @@ const generateRoster = (req, res) => {
 };
 
 module.exports = {
-    createRoster, getRosters, generateRoster
+    createRoster, getRosters, generateRoster, getRosterAssignments
 };
