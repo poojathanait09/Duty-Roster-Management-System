@@ -4,7 +4,8 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
 const {
-    createRoster, getRosters, generateRoster,  getRosterAssignments
+    createRoster, getRosters, generateRoster,  getRosterAssignments,
+    updateRosterAssignment, publishRoster
 } = require("../controllers/rosterController");
 
 
@@ -37,6 +38,20 @@ router.get(
     authMiddleware,
     roleMiddleware("MANAGER"),
     getRosterAssignments
+);
+
+router.put(
+    "/:rosterId/assignments/:assignmentId",
+    authMiddleware,
+    roleMiddleware("MANAGER"),
+    updateRosterAssignment
+);
+
+router.put(
+    "/:id/publish",
+    authMiddleware,
+    roleMiddleware("MANAGER"),
+    publishRoster
 );
 
 module.exports = router;
