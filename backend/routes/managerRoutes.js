@@ -5,7 +5,8 @@ const roleMiddleware = require("../middleware/roleMiddleware");
 
 const {
     getDepartmentEmployees, createShift,
-    getShifts, updateShift, deleteShift
+    getShifts, updateShift, deleteShift,setShiftRequirement,
+    getShiftRequirements
 } = require("../controllers/managerController");
 
 
@@ -44,6 +45,20 @@ router.delete(
     authMiddleware,
     roleMiddleware("MANAGER"),
     deleteShift
+);
+
+router.put(
+    "/shifts/:id/requirement",
+    authMiddleware,
+    roleMiddleware("MANAGER"),
+    setShiftRequirement
+);
+
+router.get(
+    "/shift-requirements",
+    authMiddleware,
+    roleMiddleware("MANAGER"),
+    getShiftRequirements
 );
 
 module.exports = router;

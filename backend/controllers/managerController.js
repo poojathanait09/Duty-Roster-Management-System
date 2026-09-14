@@ -312,6 +312,94 @@ const deleteShift = (req, res) => {
     });
 };
 
+const setShiftRequirement = (req, res) => {
+    const shiftId = req.params.id;
+    const managerId = req.user.id;
+    const { required_employees } = req.body;
+
+    if (!required_employees || required_employees < 1) {
+        return res.status(400).json({
+            message: "Required employees must be at least 1"
+        });
+    }
+
+    const sql = `
+        INSERT INTO shift_requirements
+        (shift_id, required_employees)
+        SELECT ?, ?
+        FROM shifts s
+        JOIN users u
+            ON s.department_id = u.department_id
+        WHERE s.id = ?
+        AND u.id = ?
+        AND u.role = 'MANAGER'
+        ON DUPLICATE KEY UPDATE
+        required_employees = VALUES(required_employees)
+    `;
+
+    db.query(
+        sql,
+        [shiftId, required_employees, shiftId, managerId],
+        (err, result) => {
+            if (err) {
+                return res.status(500).json({
+                    message: "Failed to set shift requirement",
+                    error: err.message
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    message: "Shift not found or access denied"
+                });
+            }
+
+            res.json({
+                message: "Shift requirement updated successfully",
+                shiftId,
+                required_employees
+            });
+        }
+    );
+};
+
+const getShiftRequirements = (req, res) => {
+    const managerId = req.user.id;
+
+    const sql = `
+        SELECT
+            s.id AS shift_id,
+            s.name AS shift_name,
+            s.start_time,
+            s.end_time,
+            COALESCE(sr.required_employees, 1) AS required_employees
+        FROM shifts s
+        JOIN users u
+            ON s.department_id = u.department_id
+        LEFT JOIN shift_requirements sr
+            ON s.id = sr.shift_id
+        WHERE u.id = ?
+        AND u.role = 'MANAGER'
+        ORDER BY s.start_time
+    `;
+
+    db.query(sql, [managerId], (err, requirements) => {
+        if (err) {
+            return res.status(500).json({
+                message: "Failed to fetch shift requirements",
+                error: err.message
+            });
+        }
+
+        res.json({
+            requirements
+        });
+    });
+};
+
+
 module.exports = {
-    getDepartmentEmployees, createShift, getShifts, updateShift, deleteShift
+    getDepartmentEmployees, createShift, getShifts, updateShift, deleteShift,
+    setShiftRequirement,
+    getShiftRequirements
 };

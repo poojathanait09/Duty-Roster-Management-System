@@ -96,12 +96,36 @@ const getRosterData = (rosterId, managerId, callback) => {
                             return callback(err, null);
                         }
 
-                        callback(null, {
-                            roster,
-                            employees,
-                            shifts,
-                            leaves
-                        });
+                       const requirementSql = `
+    SELECT
+        shift_id,
+        required_employees
+    FROM shift_requirements
+    WHERE shift_id IN (
+        SELECT id
+        FROM shifts
+        WHERE department_id = ?
+    )
+`;
+
+db.query(
+    requirementSql,
+    [departmentId],
+    (err, requirements) => {
+
+        if (err) {
+            return callback(err, null);
+        }
+
+        callback(null, {
+            roster,
+            employees,
+            shifts,
+            leaves,
+            requirements
+        });
+    }
+); 
                     }
                 );
             });
@@ -121,7 +145,13 @@ const generateAssignments = (rosterId, managerId, callback) => {
             return callback(null, data);
         }
 
-        const { roster, employees, shifts, leaves } = data;
+        const {
+            roster,
+            employees,
+            shifts,
+            leaves,
+            requirements
+        } = data;
 
         if (roster.status === "PUBLISHED") {
             return callback(null, {
@@ -131,82 +161,48 @@ const generateAssignments = (rosterId, managerId, callback) => {
 
         if (employees.length === 0) {
             return callback(null, {
-                error: "No employees found in this department"
+                error: "No employees available"
             });
         }
 
         if (shifts.length === 0) {
             return callback(null, {
-                error: "No shifts found in this department"
+                error: "No shifts available"
             });
         }
 
-        const assignments = [];
+        const requirementMap = {};
 
-        const employeeStats = {};
+        requirements.forEach(req => {
+            requirementMap[req.shift_id] = req.required_employees;
+        });
+
+        const stats = {};
 
         employees.forEach(employee => {
-            employeeStats[employee.id] = {
+            stats[employee.id] = {
                 totalDuties: 0,
                 nightDuties: 0,
-                lastDutyDate: null,
-                consecutiveDays: 0
+                lastDutyDate: null
             };
         });
 
+        const assignments = [];
+
+        const getDateString = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+
+            return `${year}-${month}-${day}`;
+        };
+
         const isOnLeave = (employeeId, date) => {
 
-            return leaves.some(leave => {
-
-                const start = new Date(leave.start_date);
-                const end = new Date(leave.end_date);
-                const current = new Date(date);
-
-                return (
-                    leave.employee_id === employeeId &&
-                    current >= start &&
-                    current <= end
-                );
-            });
-        };
-
-        const hasOverlappingShift = (employeeId, date, shift) => {
-
-            return assignments.some(assignment => {
-
-                if (
-                    assignment.employee_id !== employeeId ||
-                    assignment.duty_date !== date
-                ) {
-                    return false;
-                }
-
-                const existingShift = shifts.find(
-                    s => s.id === assignment.shift_id
-                );
-
-                if (!existingShift) {
-                    return false;
-                }
-
-                return shiftsOverlap(existingShift, shift);
-            });
-        };
-
-        const shiftsOverlap = (shift1, shift2) => {
-
-            const start1 = timeToMinutes(shift1.start_time);
-            const end1 = timeToMinutes(shift1.end_time);
-
-            const start2 = timeToMinutes(shift2.start_time);
-            const end2 = timeToMinutes(shift2.end_time);
-
-            const adjustedEnd1 = end1 <= start1 ? end1 + 1440 : end1;
-            const adjustedEnd2 = end2 <= start2 ? end2 + 1440 : end2;
-
-            return (
-                start1 < adjustedEnd2 &&
-                start2 < adjustedEnd1
+            return leaves.some(leave =>
+                leave.employee_id === employeeId &&
+                date >= leave.start_date &&
+                date <= leave.end_date
             );
         };
 
@@ -220,22 +216,68 @@ const generateAssignments = (rosterId, managerId, callback) => {
             );
         };
 
-        const getDateString = (date) => {
+        const shiftsOverlap = (shift1, shift2) => {
 
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
+            let start1 = timeToMinutes(shift1.start_time);
+            let end1 = timeToMinutes(shift1.end_time);
 
-            return `${year}-${month}-${day}`;
+            let start2 = timeToMinutes(shift2.start_time);
+            let end2 = timeToMinutes(shift2.end_time);
+
+            if (end1 <= start1) {
+                end1 += 1440;
+            }
+
+            if (end2 <= start2) {
+                end2 += 1440;
+            }
+
+            return start1 < end2 && start2 < end1;
         };
 
-        const getNextDate = (date) => {
+        const hasOverlappingShift = (employeeId, date, shift) => {
 
-            const next = new Date(date);
+            return assignments.some(assignment => {
 
-            next.setDate(next.getDate() + 1);
+                if (
+                    assignment.employee_id !== employeeId ||
+                    assignment.duty_date !== date
+                ) {
+                    return false;
+                }
 
-            return next;
+                return shiftsOverlap(
+                    assignment.shift,
+                    shift
+                );
+            });
+        };
+
+        const getScore = (employeeId, date) => {
+
+            const stat = stats[employeeId];
+
+            let consecutivePenalty = 0;
+
+            if (stat.lastDutyDate) {
+
+                const previous = new Date(stat.lastDutyDate);
+                const current = new Date(date);
+
+                const difference =
+                    (current - previous) /
+                    (1000 * 60 * 60 * 24);
+
+                if (difference === 1) {
+                    consecutivePenalty = 15;
+                }
+            }
+
+            return (
+                stat.totalDuties * 10 +
+                stat.nightDuties * 20 +
+                consecutivePenalty
+            );
         };
 
         let currentDate = new Date(roster.start_date);
@@ -243,144 +285,151 @@ const generateAssignments = (rosterId, managerId, callback) => {
 
         while (currentDate <= endDate) {
 
-            const dutyDate = getDateString(currentDate);
+            const date = getDateString(currentDate);
 
-            for (const shift of shifts) {
+            shifts.forEach(shift => {
 
-                const availableEmployees = employees.filter(employee => {
+                const requiredEmployees =
+                    requirementMap[shift.id] || 1;
 
-                    if (isOnLeave(employee.id, dutyDate)) {
-                        return false;
+                for (
+                    let slot = 0;
+                    slot < requiredEmployees;
+                    slot++
+                ) {
+
+                    const availableEmployees =
+                        employees.filter(employee => {
+
+                            if (isOnLeave(employee.id, date)) {
+                                return false;
+                            }
+
+                            if (
+                                hasOverlappingShift(
+                                    employee.id,
+                                    date,
+                                    shift
+                                )
+                            ) {
+                                return false;
+                            }
+
+                            return true;
+                        });
+
+                    if (availableEmployees.length === 0) {
+                        return callback(null, {
+                            error:
+                                `Not enough available employees for ${shift.name} on ${date}`
+                        });
                     }
+
+                    availableEmployees.sort((a, b) => {
+
+                        const aStats = stats[a.id];
+                        const bStats = stats[b.id];
+
+                        const isNight =
+                            shift.name.toLowerCase().includes("night");
+
+                        if (isNight &&
+                            aStats.nightDuties !== bStats.nightDuties) {
+
+                            return (
+                                aStats.nightDuties -
+                                bStats.nightDuties
+                            );
+                        }
+
+                        return (
+                            getScore(a.id, date) -
+                            getScore(b.id, date)
+                        );
+                    });
+
+                    const selectedEmployee =
+                        availableEmployees[0];
+
+                    assignments.push({
+                        employee_id: selectedEmployee.id,
+                        duty_date: date,
+                        shift_id: shift.id,
+                        shift
+                    });
+
+                    stats[selectedEmployee.id].totalDuties++;
 
                     if (
-                        hasOverlappingShift(
-                            employee.id,
-                            dutyDate,
-                            shift
-                        )
+                        shift.name
+                            .toLowerCase()
+                            .includes("night")
                     ) {
-                        return false;
+                        stats[selectedEmployee.id].nightDuties++;
                     }
 
-                    return true;
-                });
-
-                if (availableEmployees.length === 0) {
-                    return callback(null, {
-                        error: `No available employee for ${shift.name} on ${dutyDate}`
-                    });
+                    stats[selectedEmployee.id].lastDutyDate =
+                        date;
                 }
+            });
 
-                availableEmployees.sort((a, b) => {
-
-                    const statsA = employeeStats[a.id];
-                    const statsB = employeeStats[b.id];
-
-                    const isNightShift = shift.name.toLowerCase().includes("night");
-
-                    if (isNightShift) {
-
-                        if (statsA.nightDuties !== statsB.nightDuties) {
-                            return statsA.nightDuties - statsB.nightDuties;
-                        }
-                    }
-
-                    const scoreA =
-                        statsA.totalDuties * 10 +
-                        statsA.nightDuties * 20 +
-                        statsA.consecutiveDays * 15;
-
-                    const scoreB =
-                        statsB.totalDuties * 10 +
-                        statsB.nightDuties * 20 +
-                        statsB.consecutiveDays * 15;
-
-                    return scoreA - scoreB;
-                });
-
-                const selectedEmployee = availableEmployees[0];
-
-                assignments.push({
-                    employee_id: selectedEmployee.id,
-                    shift_id: shift.id,
-                    duty_date: dutyDate
-                });
-
-                const stats = employeeStats[selectedEmployee.id];
-
-                stats.totalDuties++;
-
-                if (shift.name.toLowerCase().includes("night")) {
-                    stats.nightDuties++;
-                }
-
-                if (stats.lastDutyDate) {
-
-                    const previousDate = new Date(stats.lastDutyDate);
-                    const current = new Date(dutyDate);
-
-                    const difference =
-                        (current - previousDate) /
-                        (1000 * 60 * 60 * 24);
-
-                    if (difference === 1) {
-                        stats.consecutiveDays++;
-                    } else {
-                        stats.consecutiveDays = 0;
-                    }
-                }
-
-                stats.lastDutyDate = dutyDate;
-            }
-
-            currentDate = getNextDate(currentDate);
+            currentDate.setDate(
+                currentDate.getDate() + 1
+            );
         }
 
-        // Remove previous draft assignments
-        const deleteSql = `
-            DELETE FROM roster_assignments
-            WHERE roster_id = ?
-        `;
-
-        db.query(deleteSql, [rosterId], (err) => {
-
-            if (err) {
-                return callback(err, null);
-            }
-
-            if (assignments.length === 0) {
-                return callback(null, {
-                    error: "No assignments generated"
-                });
-            }
-
-            const insertSql = `
-                INSERT INTO roster_assignments
-                (roster_id, employee_id, shift_id, duty_date)
-                VALUES ?
-            `;
-
-            const values = assignments.map(assignment => [
-                rosterId,
-                assignment.employee_id,
-                assignment.shift_id,
-                assignment.duty_date
-            ]);
-
-            db.query(insertSql, [values], (err) => {
+        db.query(
+            `DELETE FROM roster_assignments
+             WHERE roster_id = ?`,
+            [rosterId],
+            (err) => {
 
                 if (err) {
                     return callback(err, null);
                 }
 
-                callback(null, {
-                    message: "Roster generated successfully",
+                if (assignments.length === 0) {
+                    return callback(null, {
+                        error: "No assignments generated"
+                    });
+                }
+
+                const values = assignments.map(a => [
                     rosterId,
-                    assignments
-                });
-            });
-        });
+                    a.employee_id,
+                    a.shift_id,
+                    a.duty_date
+                ]);
+
+                const insertSql = `
+                    INSERT INTO roster_assignments
+                    (roster_id, employee_id, shift_id, duty_date)
+                    VALUES ?
+                `;
+
+                db.query(
+                    insertSql,
+                    [values],
+                    (err) => {
+
+                        if (err) {
+                            return callback(err, null);
+                        }
+
+                        callback(null, {
+                            message:
+                                "Roster generated successfully",
+                            rosterId,
+                            assignments: assignments.map(a => ({
+                                employee_id: a.employee_id,
+                                duty_date: a.duty_date,
+                                shift_id: a.shift_id
+                            }))
+                        });
+                    }
+                );
+            }
+        );
     });
 };
 

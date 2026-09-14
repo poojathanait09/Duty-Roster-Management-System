@@ -153,7 +153,7 @@ const getRosterAssignments = (req, res) => {
     const sql = `
         SELECT
             ra.id,
-            ra.duty_date,
+            DATE_FORMAT(ra.duty_date, '%Y-%m-%d') AS duty_date,
             ra.employee_id,
             u.name AS employee_name,
             ra.shift_id,
