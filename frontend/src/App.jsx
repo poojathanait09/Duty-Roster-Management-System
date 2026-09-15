@@ -7,6 +7,9 @@ import EmployeeDashboard from "./pages/EmployeeDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ManagerEmployees from "./pages/ManagerEmployees";
 import ManagerShifts from "./pages/ManagerShifts";
+import ManagerLeaves from "./pages/ManagerLeaves";
+import ManagerRosters from "./pages/ManagerRosters";
+import RosterDetails from "./pages/RosterDetails";
 
 function App() {
     return (
@@ -52,13 +55,40 @@ function App() {
                 />
 
                 <Route
-                path="/manager/shifts"
-                element={
-                    <ProtectedRoute allowedRole="MANAGER">
-                        <ManagerShifts />
-                    </ProtectedRoute>
-                }
-            />
+                    path="/manager/shifts"
+                    element={
+                        <ProtectedRoute allowedRole="MANAGER">
+                            <ManagerShifts />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/manager/leaves"
+                    element={
+                        <ProtectedRoute allowedRole="MANAGER">
+                            <ManagerLeaves />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/manager/rosters"
+                    element={
+                        <ProtectedRoute allowedRole="MANAGER">
+                            <ManagerRosters />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/manager/rosters/:id"
+                    element={
+                        <ProtectedRoute allowedRole="MANAGER">
+                            <RosterDetails />
+                        </ProtectedRoute>
+                    }
+                />
 
             </Routes>
         </BrowserRouter>

@@ -71,8 +71,8 @@ const getRosterData = (rosterId, managerId, callback) => {
                 const leaveSql = `
                     SELECT
                         l.employee_id,
-                        l.start_date,
-                        l.end_date
+                        DATE_FORMAT(l.start_date, '%Y-%m-%d') AS start_date,
+                        DATE_FORMAT(l.end_date, '%Y-%m-%d') AS end_date
                     FROM leaves l
                     JOIN users u
                         ON l.employee_id = u.id
@@ -287,7 +287,7 @@ const generateAssignments = (rosterId, managerId, callback) => {
 
             const date = getDateString(currentDate);
 
-            shifts.forEach(shift => {
+            for (const shift of shifts) {
 
                 const requiredEmployees =
                     requirementMap[shift.id] || 1;
@@ -333,9 +333,10 @@ const generateAssignments = (rosterId, managerId, callback) => {
                         const isNight =
                             shift.name.toLowerCase().includes("night");
 
-                        if (isNight &&
-                            aStats.nightDuties !== bStats.nightDuties) {
-
+                        if (
+                            isNight &&
+                            aStats.nightDuties !== bStats.nightDuties
+                        ) {
                             return (
                                 aStats.nightDuties -
                                 bStats.nightDuties
@@ -371,7 +372,7 @@ const generateAssignments = (rosterId, managerId, callback) => {
                     stats[selectedEmployee.id].lastDutyDate =
                         date;
                 }
-            });
+            }
 
             currentDate.setDate(
                 currentDate.getDate() + 1
