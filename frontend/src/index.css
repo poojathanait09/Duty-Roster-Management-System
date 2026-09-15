@@ -93,3 +93,62 @@ a {
 .card p {
     color: #6b7280;
 }
+
+.employee-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.employee-table th,
+.employee-table td {
+    padding: 14px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.employee-table th {
+    background: #f9fafb;
+}
+
+.employee-table tr:hover {
+    background: #f9fafb;
+}
+
+.shift-form-card {
+    margin-bottom: 25px;
+}
+
+.shift-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.shift-form input {
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+}
+
+.shift-form label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.shift-form button,
+.employee-table button {
+    padding: 9px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 6px;
+}
+
+.error-message {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
