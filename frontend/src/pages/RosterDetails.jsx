@@ -126,6 +126,24 @@ function RosterDetails() {
         }
     };
 
+const publishRoster = async () => {
+    try {
+        setError("");
+        setSuccess("");
+
+        await api(`/rosters/${id}/publish`, {
+            method: "PUT"
+        });
+
+        setSuccess("Roster published successfully.");
+
+        await fetchRoster();
+
+    } catch (error) {
+        setError(error.message);
+    }
+};
+
     if (loading) {
         return <p>Loading roster...</p>;
     }
@@ -165,6 +183,7 @@ function RosterDetails() {
 
                         {roster.status === "DRAFT" && (
                             <div className="card roster-actions">
+
                                 <button
                                     onClick={generateRoster}
                                     disabled={generating}
@@ -173,6 +192,16 @@ function RosterDetails() {
                                         ? "Generating..."
                                         : "Generate Roster"}
                                 </button>
+
+                                {assignments.length > 0 && (
+                                    <button
+                                        onClick={publishRoster}
+                                        className="publish-button"
+                                    >
+                                        Publish Roster
+                                    </button>
+                                )}
+
                             </div>
                         )}
 
