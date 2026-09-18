@@ -1,5 +1,5 @@
 import ManagerSidebar from "../components/ManagerSidebar";
-
+// manager dashboard
 function ManagerDashboard() {
     const user = JSON.parse(localStorage.getItem("user"));
 
