@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ManagerSidebar from "../components/ManagerSidebar";
 import api from "../services/api";
+//Manager Employee function
 
 function ManagerEmployees() {
     const [employees, setEmployees] = useState([]);
