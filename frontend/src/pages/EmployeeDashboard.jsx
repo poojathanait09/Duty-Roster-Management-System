@@ -47,7 +47,10 @@ function EmployeeDashboard() {
 
                 <nav>
                     <a href="/employee">My Roster</a>
+                    <a href="/employee/leaves">My Leaves </a>
                 </nav>
+
+
 
                 <button onClick={handleLogout}>
                     Logout

@@ -10,6 +10,7 @@ import ManagerShifts from "./pages/ManagerShifts";
 import ManagerLeaves from "./pages/ManagerLeaves";
 import ManagerRosters from "./pages/ManagerRosters";
 import RosterDetails from "./pages/RosterDetails";
+import EmployeeLeaves from "./pages/EmployeeLeaves";
 
 function App() {
     return (
@@ -86,6 +87,15 @@ function App() {
                     element={
                         <ProtectedRoute allowedRole="MANAGER">
                             <RosterDetails />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/employee/leaves"
+                    element={
+                        <ProtectedRoute allowedRole="EMPLOYEE">
+                            <EmployeeLeaves />
                         </ProtectedRoute>
                     }
                 />
